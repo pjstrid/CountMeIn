@@ -10,54 +10,68 @@ import SwiftData
 
 struct GameView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Player.order) private var players: [Player]
+    @Query(sort: \Player.order) private var allPlayers: [Player]
     
     let playerNames: [String]
+    let existingGame: GameState?
+    
     @State private var hasInitialized = false
+    @State private var showingNumberPicker = false
+    @State private var selectedPlayerIndex: Int?
+    @State private var currentGame: GameState?
+    
+    private var players: [Player] {
+        if let game = currentGame {
+            return game.players.sorted { $0.order < $1.order }
+        }
+        return []
+    }
     
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // Header
-                HStack {
-                    Text("Killer Dart")
-                        .font(.title2)
-                        .bold()
-                    
-                    Spacer()
+        VStack(spacing: 0) {
+            // Player score cards
+            if players.count == 2 {
+                // 50/50 layout
+                VStack(spacing: 2) {
+                    playerCard(at: 0)
+                    playerCard(at: 1)
                 }
-                .padding()
-                .background(Color.black.opacity(0.3))
-                
-                // Player score cards
-                if playerNames.count == 2 {
-                    // 50/50 layout
-                    VStack(spacing: 2) {
-                        playerCard(at: 0)
-                        playerCard(at: 1)
-                    }
-                } else if playerNames.count == 3 {
-                    // 33/33/33 layout
-                    VStack(spacing: 2) {
-                        playerCard(at: 0)
-                        playerCard(at: 1)
-                        playerCard(at: 2)
-                    }
-                } else if playerNames.count == 4 {
-                    // 25/25/25/25 layout
-                    VStack(spacing: 2) {
-                        playerCard(at: 0)
-                        playerCard(at: 1)
-                        playerCard(at: 2)
-                        playerCard(at: 3)
-                    }
+            } else if players.count == 3 {
+                // 33/33/33 layout
+                VStack(spacing: 2) {
+                    playerCard(at: 0)
+                    playerCard(at: 1)
+                    playerCard(at: 2)
+                }
+            } else if players.count == 4 {
+                // 25/25/25/25 layout
+                VStack(spacing: 2) {
+                    playerCard(at: 0)
+                    playerCard(at: 1)
+                    playerCard(at: 2)
+                    playerCard(at: 3)
                 }
             }
+            
+            Spacer()
+                .frame(height: 20)
         }
+        .navigationTitle("Killer Dart")
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
         .onAppear {
-            initializePlayers()
+            initializeGame()
+        }
+        .sheet(isPresented: $showingNumberPicker) {
+            if let index = selectedPlayerIndex, index < players.count {
+                NumberPickerView(
+                    playerName: players[index].name,
+                    selectedNumber: Binding(
+                        get: { players[index].selectedNumber },
+                        set: { players[index].selectedNumber = $0 }
+                    )
+                )
+            }
         }
     }
     
@@ -66,29 +80,56 @@ struct GameView: View {
         if index < players.count {
             PlayerScoreCard(
                 playerName: players[index].name,
-                score: players[index].score
+                score: players[index].score,
+                selectedNumber: players[index].selectedNumber,
+                onNumberSelect: {
+                    selectedPlayerIndex = index
+                    showingNumberPicker = true
+                },
+                onScoreChange: { newScore in
+                    // Limit score between 0 and 5
+                    let clampedScore = max(0, min(5, newScore))
+                    players[index].score = clampedScore
+                }
             )
         }
     }
     
-    private func initializePlayers() {
+    private func initializeGame() {
         guard !hasInitialized else { return }
         hasInitialized = true
         
-        // Clear existing players
-        players.forEach { modelContext.delete($0) }
-        
-        // Add new players
-        for (index, name) in playerNames.enumerated() {
-            let player = Player(name: name, score: 0, order: index)
-            modelContext.insert(player)
+        if let existing = existingGame {
+            // Continue existing game
+            currentGame = existing
+        } else {
+            // Create new game
+            // First, deactivate any existing active games
+            let descriptor = FetchDescriptor<GameState>(
+                predicate: #Predicate { $0.isActive == true }
+            )
+            if let existingGames = try? modelContext.fetch(descriptor) {
+                existingGames.forEach { $0.isActive = false }
+            }
+            
+            // Create new game state
+            let newGame = GameState()
+            modelContext.insert(newGame)
+            
+            // Create players for the new game
+            for (index, name) in playerNames.enumerated() {
+                let player = Player(name: name, score: 1, order: index)
+                player.game = newGame
+                modelContext.insert(player)
+            }
+            
+            currentGame = newGame
+            try? modelContext.save()
         }
-        
-        try? modelContext.save()
     }
 }
 
 #Preview {
-    GameView(playerNames: ["Berit", "Bertil"])
-        .modelContainer(for: Player.self, inMemory: true)
+    GameView(playerNames: ["Berit", "Bertil"], existingGame: nil)
+        .modelContainer(for: [Player.self, GameState.self], inMemory: true)
 }

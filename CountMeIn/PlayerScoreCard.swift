@@ -10,28 +10,120 @@ import SwiftUI
 struct PlayerScoreCard: View {
     let playerName: String
     let score: Int
+    let selectedNumber: Int?
+    let onNumberSelect: () -> Void
+    let onScoreChange: (Int) -> Void
     
     var body: some View {
-        VStack(spacing: 12) {
-            Text(playerName)
-                .font(.headline)
-                .foregroundStyle(.white)
+        ZStack(alignment: .topLeading) {
+            VStack(spacing: 8) {
+                
+                // Player name
+                Text(playerName)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .padding(.top, 8)
+                
+                Spacer()
+                
+                // Score display with +/- buttons
+                HStack(spacing: 24) {
+                    // Minus button
+                    Button(action: {
+                        onScoreChange(score - 1)
+                    }) {
+                        Image(systemName: "minus.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.red)
+                    }
+                    
+                    // Score
+                    Text("\(score)")
+                        .font(.system(size: 56, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(minWidth: 80)
+                    
+                    // Plus button
+                    Button(action: {
+                        onScoreChange(score + 1)
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 40))
+                            .foregroundStyle(.green)
+                    }
+                }
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 8)
+            .background(Color.gray.opacity(0.2))
+            .cornerRadius(12)
             
-            Text("\(score)")
-                .font(.system(size: 48, weight: .bold))
-                .foregroundStyle(.white)
+            // Number selection button (top-left corner)
+            Button(action: onNumberSelect) {
+                ZStack {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 50, height: 50)
+                    
+                    if let number = selectedNumber {
+                        Text("\(number)")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(.white)
+                    } else {
+                        Text("-")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
+                }
+            }
+            .padding(12)
             
-            Spacer()
+            // Killer badge (top-right corner, only show if score is 5)
+            if score == 5 {
+                VStack {
+                    HStack {
+                        Spacer()
+                        
+                        Text("Killer")
+                            .font(.headline)
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 4)
+                            .background(
+                                Color.black
+                                    .cornerRadius(8)
+                            )
+                    }
+                    
+                    Spacer()
+                }
+                .padding(12)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
-        .background(Color.gray.opacity(0.2))
-        .cornerRadius(12)
     }
 }
 
 #Preview {
-    PlayerScoreCard(playerName: "Player 1", score: 0)
+    VStack(spacing: 6) {
+        PlayerScoreCard(
+            playerName: "Player 1", 
+            score: 5,
+            selectedNumber: 7,
+            onNumberSelect: {},
+            onScoreChange: { _ in }
+        )
         .frame(height: 200)
-        .preferredColorScheme(.dark)
+        
+        PlayerScoreCard(
+            playerName: "Player 2", 
+            score: 0,
+            selectedNumber: 10,
+            onNumberSelect: {},
+            onScoreChange: { _ in }
+        )
+        .frame(height: 200)
+    }
+    .preferredColorScheme(.dark)
 }
