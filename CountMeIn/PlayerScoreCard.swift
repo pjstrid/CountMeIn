@@ -14,6 +14,10 @@ struct PlayerScoreCard: View {
     let onNumberSelect: () -> Void
     let onScoreChange: (Int) -> Void
     
+    var isEliminated: Bool {
+        score == 0
+    }
+    
     var body: some View {
         ZStack(alignment: .topLeading) {
             VStack(spacing: 8) {
@@ -36,6 +40,7 @@ struct PlayerScoreCard: View {
                             .font(.system(size: 40))
                             .foregroundStyle(.red)
                     }
+                    .disabled(isEliminated)
                     
                     // Score
                     Text("\(score)")
@@ -51,6 +56,7 @@ struct PlayerScoreCard: View {
                             .font(.system(size: 40))
                             .foregroundStyle(.green)
                     }
+                    .disabled(isEliminated)
                 }
                 
                 Spacer()
@@ -59,6 +65,8 @@ struct PlayerScoreCard: View {
             .padding(.vertical, 8)
             .background(Color.gray.opacity(0.2))
             .cornerRadius(12)
+            .opacity(isEliminated ? 0.4 : 1.0)
+            .blur(radius: isEliminated ? 2 : 0)
             
             // Number selection button (top-left corner)
             Button(action: onNumberSelect) {
@@ -79,6 +87,8 @@ struct PlayerScoreCard: View {
                 }
             }
             .padding(12)
+            .disabled(isEliminated)
+            .opacity(isEliminated ? 0.4 : 1.0)
             
             // Killer badge (top-right corner, only show if score is 5)
             if score == 5 {
@@ -100,6 +110,35 @@ struct PlayerScoreCard: View {
                     Spacer()
                 }
                 .padding(12)
+            }
+            
+            // Eliminated overlay
+            if isEliminated {
+                VStack {
+                    
+                    Spacer()
+                    
+                    HStack {
+                        
+                        Spacer()
+                        
+                        Text("ELIMINATED")
+                            .font(.title3)
+                            .bold()
+                            .foregroundStyle(.red)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Color.black.opacity(0.7)
+                                    .cornerRadius(8)
+                            )
+                        
+                        Spacer()
+                        
+                    }
+                    
+                    Spacer()
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ import SwiftData
 
 struct GameView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @Query(sort: \Player.order) private var allPlayers: [Player]
     
     let playerNames: [String]
@@ -19,6 +20,8 @@ struct GameView: View {
     @State private var showingNumberPicker = false
     @State private var selectedPlayerIndex: Int?
     @State private var currentGame: GameState?
+    @State private var showWinner = false
+    @State private var winnerName = ""
     
     private var players: [Player] {
         if let game = currentGame {
@@ -27,49 +30,72 @@ struct GameView: View {
         return []
     }
     
+    private var activePlayers: [Player] {
+        players.filter { $0.score > 0 }
+    }
+    
+    private var hasWinner: Bool {
+        activePlayers.count == 1 && players.count > 1
+    }
+    
     var body: some View {
-        VStack(spacing: 0) {
-            // Player score cards
-            if players.count == 2 {
-                // 50/50 layout
-                VStack(spacing: 2) {
-                    playerCard(at: 0)
-                    playerCard(at: 1)
+        ZStack {
+            VStack(spacing: 0) {
+                // Player score cards
+                if players.count == 2 {
+                    // 50/50 layout
+                    VStack(spacing: 2) {
+                        playerCard(at: 0)
+                        playerCard(at: 1)
+                    }
+                } else if players.count == 3 {
+                    // 33/33/33 layout
+                    VStack(spacing: 2) {
+                        playerCard(at: 0)
+                        playerCard(at: 1)
+                        playerCard(at: 2)
+                    }
+                } else if players.count == 4 {
+                    // 25/25/25/25 layout
+                    VStack(spacing: 2) {
+                        playerCard(at: 0)
+                        playerCard(at: 1)
+                        playerCard(at: 2)
+                        playerCard(at: 3)
+                    }
                 }
-            } else if players.count == 3 {
-                // 33/33/33 layout
-                VStack(spacing: 2) {
-                    playerCard(at: 0)
-                    playerCard(at: 1)
-                    playerCard(at: 2)
-                }
-            } else if players.count == 4 {
-                // 25/25/25/25 layout
-                VStack(spacing: 2) {
-                    playerCard(at: 0)
-                    playerCard(at: 1)
-                    playerCard(at: 2)
-                    playerCard(at: 3)
+                
+                Spacer()
+                    .frame(height: 20)
+            }
+            .navigationTitle("Killer Dart")
+            .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(.dark)
+            .onAppear {
+                initializeGame()
+            }
+            .sheet(isPresented: $showingNumberPicker) {
+                if let index = selectedPlayerIndex, index < players.count {
+                    NumberPickerView(
+                        playerName: players[index].name,
+                        selectedNumber: Binding(
+                            get: { players[index].selectedNumber },
+                            set: { players[index].selectedNumber = $0 }
+                        )
+                    )
                 }
             }
             
-            Spacer()
-                .frame(height: 20)
-        }
-        .navigationTitle("Killer Dart")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
-        .onAppear {
-            initializeGame()
-        }
-        .sheet(isPresented: $showingNumberPicker) {
-            if let index = selectedPlayerIndex, index < players.count {
-                NumberPickerView(
-                    playerName: players[index].name,
-                    selectedNumber: Binding(
-                        get: { players[index].selectedNumber },
-                        set: { players[index].selectedNumber = $0 }
-                    )
+            // Winner overlay
+            if showWinner {
+                WinnerView(
+                    winnerName: winnerName,
+                    onNewGame: {
+                        startNewGame()
+                    },
+                    onDismiss: {
+                        dismiss()
+                    }
                 )
             }
         }
@@ -90,9 +116,32 @@ struct GameView: View {
                     // Limit score between 0 and 5
                     let clampedScore = max(0, min(5, newScore))
                     players[index].score = clampedScore
+                    
+                    // Check for winner
+                    checkForWinner()
                 }
             )
         }
+    }
+    
+    private func checkForWinner() {
+        if hasWinner, let winner = activePlayers.first {
+            winnerName = winner.name
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                showWinner = true
+            }
+        }
+    }
+    
+    private func startNewGame() {
+        // Reset all players to score 1
+        players.forEach { player in
+            player.score = 1
+            player.selectedNumber = nil
+        }
+        
+        showWinner = false
+        try? modelContext.save()
     }
     
     private func initializeGame() {
