@@ -6,11 +6,20 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct PlayerSetupView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<GameState> { $0.isActive == true }) private var activeGames: [GameState]
+    
     @State private var playerCount: Int = 2
     @State private var playerNames: [String] = ["Player 1", "Player 2"]
     @State private var isGameStarted = false
+    @State private var isContinuingGame = false
+    
+    var hasActiveGame: Bool {
+        !activeGames.isEmpty
+    }
     
     var body: some View {
         NavigationStack {
@@ -21,6 +30,26 @@ struct PlayerSetupView: View {
                     .padding(.top, 40)
                 
                 Spacer()
+                
+                // Continue game button (if there's an active game)
+                if hasActiveGame {
+                    Button(action: {
+                        isContinuingGame = true
+                    }) {
+                        Text("Continue Game")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.green)
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    
+                    Text("or start a new game")
+                        .font(.subheadline)
+                        .foregroundStyle(.gray)
+                }
                 
                 // Player count selector
                 VStack(spacing: 16) {
@@ -57,11 +86,11 @@ struct PlayerSetupView: View {
                 
                 Spacer()
                 
-                // Start game button
+                // Start new game button
                 Button(action: {
                     isGameStarted = true
                 }) {
-                    Text("Start Game")
+                    Text("Start New Game")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
@@ -73,7 +102,12 @@ struct PlayerSetupView: View {
                 .padding(.bottom, 40)
             }
             .navigationDestination(isPresented: $isGameStarted) {
-                GameView(playerNames: playerNames.prefix(playerCount).map { String($0) })
+                GameView(playerNames: playerNames.prefix(playerCount).map { String($0) }, existingGame: nil)
+            }
+            .navigationDestination(isPresented: $isContinuingGame) {
+                if let activeGame = activeGames.first {
+                    GameView(playerNames: [], existingGame: activeGame)
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -92,4 +126,5 @@ struct PlayerSetupView: View {
 
 #Preview {
     PlayerSetupView()
+        .modelContainer(for: [Player.self, GameState.self], inMemory: true)
 }
