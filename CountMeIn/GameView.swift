@@ -127,7 +127,7 @@ struct GameView: View {
     private func checkForWinner() {
         if hasWinner, let winner = activePlayers.first {
             winnerName = winner.name
-            DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                 showWinner = true
             }
         }
