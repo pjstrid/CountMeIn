@@ -44,7 +44,7 @@ struct StartPageView: View {
                         )
                     }
                     
-                    NavigationLink(destination: DiceGamesPlaceholder()) {
+                    NavigationLink(destination: DicePlayerSetupView()) {
                         GameOptionRow(
                             icon: "dice",
                             title: "Dice Games",
