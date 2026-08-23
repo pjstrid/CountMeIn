@@ -24,10 +24,16 @@ struct PlayerSetupView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("Killer Dart")
-                    .font(.largeTitle)
-                    .bold()
-                    .padding(.top, 40)
+                VStack {
+                    Image(systemName: "scope")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.green)
+                    
+                    Text("Killer Dart")
+                        .font(.largeTitle)
+                        .bold()
+                        .padding(.top, 40)
+                }
                 
                 Spacer()
                 

@@ -90,26 +90,26 @@ struct GameOptionRow: View {
     }
 }
 
-struct DiceGamesPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "dice")
-                .font(.system(size: 80))
-                .foregroundStyle(.orange)
-            
-            Text("Dice Games")
-                .font(.largeTitle)
-                .bold()
-            
-            Text("Coming Soon!")
-                .font(.title3)
-                .foregroundStyle(.gray)
-        }
-        .navigationTitle("Dice Games")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
-    }
-}
+//struct DiceGamesPlaceholder: View {
+//    var body: some View {
+//        VStack(spacing: 20) {
+//            Image(systemName: "dice")
+//                .font(.system(size: 80))
+//                .foregroundStyle(.orange)
+//            
+//            Text("Dice Games")
+//                .font(.largeTitle)
+//                .bold()
+//            
+//            Text("Coming Soon!")
+//                .font(.title3)
+//                .foregroundStyle(.gray)
+//        }
+//        .navigationTitle("Dice Games")
+//        .navigationBarTitleDisplayMode(.inline)
+//        .preferredColorScheme(.dark)
+//    }
+//}
 
 #Preview {
     StartPageView()

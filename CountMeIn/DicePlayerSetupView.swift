@@ -24,11 +24,16 @@ struct DicePlayerSetupView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Text("10 000")
-                    .font(.largeTitle)
-                    .bold()
-                    .padding(.top, 40)
-                
+                VStack {
+                    Image(systemName: "dice")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.orange)
+                    
+                    Text("10 000")
+                        .font(.largeTitle)
+                        .bold()
+                        .padding(.top, 40)
+                }
                 Spacer()
                 
                 // Continue game button (if there's an active game)

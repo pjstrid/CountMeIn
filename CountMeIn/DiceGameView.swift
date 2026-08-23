@@ -18,6 +18,8 @@ struct DiceGameView: View {
     @State private var hasInitialized = false
     @State private var currentGame: DiceGameState?
     @State private var selectedPlayerIndex: Int?
+    @State private var showEditScore = false
+    @State private var editingPlayerIndex: Int?
     
     private var players: [DicePlayer] {
         if let game = currentGame {
@@ -47,18 +49,33 @@ struct DiceGameView: View {
                 }
                 .padding(.horizontal)
                 
-                // Save button
-                Button(action: saveRoundScore) {
-                    Text("Save")
-                        .font(.headline)
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.green : Color.gray.opacity(0.5))
-                        .cornerRadius(12)
+                HStack {
+                    // Save button
+                    Button(action: saveRoundScore) {
+                        Text("Save")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.blue.opacity(0.8) : Color.gray.opacity(0.5))
+                            .cornerRadius(12)
+                    }
+                    .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
+                    .padding(.horizontal)
+                    
+                    // Clear button
+                    Button(action: clearRoundScore) {
+                        Text("Clear")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
+                            .cornerRadius(12)
+                    }
+                    .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
+                    .padding(.horizontal)
                 }
-                .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
-                .padding(.horizontal)
             }
             .padding(.vertical, 16)
             .background(Color.black.opacity(0.5))
@@ -68,6 +85,17 @@ struct DiceGameView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             initializeGame()
+        }
+        .sheet(isPresented: $showEditScore) {
+            if let index = editingPlayerIndex, players.indices.contains(index) {
+                EditScoreView(
+                    playerName: players[index].name,
+                    score: Binding(
+                        get: { players[index].savedScore },
+                        set: { players[index].savedScore = $0 }
+                    )
+                )
+            }
         }
     }
     
@@ -81,6 +109,13 @@ struct DiceGameView: View {
                 isSelected: selectedPlayerIndex == index,
                 onSelect: {
                     selectedPlayerIndex = index
+                },
+                onEditScore: {
+                    editingPlayerIndex = index
+                    showEditScore = true
+                },
+                onUndoLastSave: {
+                    undoLastSave(for: index)
                 }
             )
             .frame(height: 150)
@@ -98,7 +133,7 @@ struct DiceGameView: View {
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(Color.blue)
+                .background(Color.green.opacity(0.5))
                 .cornerRadius(12)
         }
         .disabled(selectedPlayerIndex == nil)
@@ -113,11 +148,49 @@ struct DiceGameView: View {
         guard let index = selectedPlayerIndex, players.indices.contains(index) else { return }
         
         let player = players[index]
-        player.savedScore += player.roundScore
+        let amountToSave = player.roundScore
+        
+        // Save the amount for potential undo
+        player.lastSavedAmount = amountToSave
+        
+        // Add to saved score and clear round score
+        player.savedScore += amountToSave
         player.roundScore = 0
         
         // Deselect player after saving
         selectedPlayerIndex = nil
+        
+        try? modelContext.save()
+    }
+    
+    private func clearRoundScore() {
+        guard let index = selectedPlayerIndex, players.indices.contains(index) else { return }
+        
+        let player = players[index]
+    
+        // Clears the round score
+        player.roundScore = 0
+        
+        // Deselect player after saving
+        selectedPlayerIndex = nil
+    }
+    
+    private func undoLastSave(for index: Int) {
+        guard players.indices.contains(index) else { return }
+        
+        let player = players[index]
+        
+        // Only undo if there was a previous save
+        guard player.lastSavedAmount > 0 else { return }
+        
+        // Subtract the last saved amount from the saved score
+        player.savedScore = max(0, player.savedScore - player.lastSavedAmount)
+        
+        // Add it back to the round score
+        player.roundScore += player.lastSavedAmount
+        
+        // Clear the last saved amount
+        player.lastSavedAmount = 0
         
         try? modelContext.save()
     }

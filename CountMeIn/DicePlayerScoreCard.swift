@@ -13,6 +13,8 @@ struct DicePlayerScoreCard: View {
     let roundScore: Int
     let isSelected: Bool
     let onSelect: () -> Void
+    let onEditScore: () -> Void
+    let onUndoLastSave: () -> Void
     
     var body: some View {
         Button(action: onSelect) {
@@ -23,9 +25,7 @@ struct DicePlayerScoreCard: View {
                     .font(.headline)
                     .foregroundStyle(.white)
                     
-                    
                 HStack {
-                    
                     Spacer()
                     
                     // Saved score
@@ -65,6 +65,15 @@ struct DicePlayerScoreCard: View {
             .padding(8)
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button(action: onEditScore) {
+                Label("Edit Score", systemImage: "pencil")
+            }
+            
+            Button(role: .destructive, action: onUndoLastSave) {
+                Label("Undo Last Save", systemImage: "arrow.uturn.backward")
+            }
+        }
     }
 }
 
@@ -75,7 +84,9 @@ struct DicePlayerScoreCard: View {
             savedScore: 2500,
             roundScore: 350,
             isSelected: true,
-            onSelect: {}
+            onSelect: {},
+            onEditScore: {},
+            onUndoLastSave: {}
         )
         .frame(height: 150)
         
@@ -84,7 +95,9 @@ struct DicePlayerScoreCard: View {
             savedScore: 1800,
             roundScore: 0,
             isSelected: false,
-            onSelect: {}
+            onSelect: {},
+            onEditScore: {},
+            onUndoLastSave: {}
         )
         .frame(height: 150)
     }
