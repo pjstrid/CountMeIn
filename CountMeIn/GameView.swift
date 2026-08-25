@@ -11,8 +11,7 @@ import SwiftData
 struct GameView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Player.order) private var allPlayers: [Player]
-    
+
     let playerNames: [String]
     let existingGame: GameState?
     
@@ -94,6 +93,7 @@ struct GameView: View {
                         startNewGame()
                     },
                     onDismiss: {
+                        finishGame()
                         dismiss()
                     }
                 )
@@ -144,23 +144,34 @@ struct GameView: View {
         try? modelContext.save()
     }
     
+    /// Called when the winner screen is dismissed back to the menu. A finished
+    /// game is never resumable, so remove it (and its players, via cascade
+    /// delete) instead of leaving it marked active forever.
+    private func finishGame() {
+        guard let game = currentGame else { return }
+        modelContext.delete(game)
+        currentGame = nil
+        try? modelContext.save()
+    }
+
     private func initializeGame() {
         guard !hasInitialized else { return }
         hasInitialized = true
-        
+
         if let existing = existingGame {
             // Continue existing game
             currentGame = existing
         } else {
             // Create new game
-            // First, deactivate any existing active games
+            // First, remove any leftover active games (e.g. abandoned mid-game)
+            // so old players don't pile up in the store forever.
             let descriptor = FetchDescriptor<GameState>(
                 predicate: #Predicate { $0.isActive == true }
             )
             if let existingGames = try? modelContext.fetch(descriptor) {
-                existingGames.forEach { $0.isActive = false }
+                existingGames.forEach { modelContext.delete($0) }
             }
-            
+
             // Create new game state
             let newGame = GameState()
             modelContext.insert(newGame)

@@ -36,15 +36,19 @@ struct StartPageView: View {
                         .foregroundStyle(.gray)
                         .padding(.bottom, 20)
                     
-                    NavigationLink(destination: PlayerSetupView()) {
+                    NavigationLink {
+                        DartGamesMenuView()
+                    } label: {
                         GameOptionRow(
                             icon: "scope",
                             title: "Dart Games",
                             color: .green
                         )
                     }
-                    
-                    NavigationLink(destination: DiceGamesPlaceholder()) {
+
+                    NavigationLink {
+                        DiceGamesMenuView()
+                    } label: {
                         GameOptionRow(
                             icon: "dice",
                             title: "Dice Games",
@@ -90,26 +94,26 @@ struct GameOptionRow: View {
     }
 }
 
-struct DiceGamesPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "dice")
-                .font(.system(size: 80))
-                .foregroundStyle(.orange)
-            
-            Text("Dice Games")
-                .font(.largeTitle)
-                .bold()
-            
-            Text("Coming Soon!")
-                .font(.title3)
-                .foregroundStyle(.gray)
-        }
-        .navigationTitle("Dice Games")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
-    }
-}
+//struct DiceGamesPlaceholder: View {
+//    var body: some View {
+//        VStack(spacing: 20) {
+//            Image(systemName: "dice")
+//                .font(.system(size: 80))
+//                .foregroundStyle(.orange)
+//            
+//            Text("Dice Games")
+//                .font(.largeTitle)
+//                .bold()
+//            
+//            Text("Coming Soon!")
+//                .font(.title3)
+//                .foregroundStyle(.gray)
+//        }
+//        .navigationTitle("Dice Games")
+//        .navigationBarTitleDisplayMode(.inline)
+//        .preferredColorScheme(.dark)
+//    }
+//}
 
 #Preview {
     StartPageView()
