@@ -10,111 +10,99 @@ import SwiftData
 
 struct DicePlayerSetupView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(filter: #Predicate<DiceGameState> { $0.isActive == true }) private var activeGames: [DiceGameState]
-    
+
+    /// Passed down from DiceGamesMenuView, which already holds the live
+    /// query for this. Deliberately NOT re-queried here: two simultaneous
+    /// `@Query`s with the identical predicate — one on this view, one on its
+    /// still-mounted parent — send SwiftData's change observation into an
+    /// infinite invalidation loop that pegs the CPU and freezes the app the
+    /// moment this screen is pushed. One source of truth, passed down.
+    let activeGame: DiceGameState?
+
     @State private var playerCount: Int = 2
     @State private var playerNames: [String] = ["Player 1", "Player 2"]
-    @State private var isGameStarted = false
-    @State private var isContinuingGame = false
-    
-    var hasActiveGame: Bool {
-        !activeGames.isEmpty
-    }
-    
+
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                VStack {
-                    Image(systemName: "dice")
-                        .font(.system(size: 40))
-                        .foregroundStyle(.orange)
-                    
-                    Text("10 000")
-                        .font(.largeTitle)
-                        .bold()
-                        .padding(.top, 40)
-                }
-                Spacer()
-                
-                // Continue game button (if there's an active game)
-                if hasActiveGame {
-                    Button(action: {
-                        isContinuingGame = true
-                    }) {
-                        Text("Continue Game")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.green)
-                            .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-                    
-                    Text("or start a new game")
-                        .font(.subheadline)
-                        .foregroundStyle(.gray)
-                }
-                
-                // Player count selector
-                VStack(spacing: 16) {
-                    Text("Number of Players")
-                        .font(.headline)
-                    
-                    Picker("Players", selection: $playerCount) {
-                        ForEach(2...4, id: \.self) { count in
-                            Text("\(count) Players").tag(count)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .onChange(of: playerCount) { oldValue, newValue in
-                        updatePlayerNames(newValue)
-                    }
-                }
-                .padding(.horizontal)
-                
-                // Player name inputs
-                VStack(spacing: 12) {
-                    ForEach(Array(playerNames.prefix(playerCount).enumerated()), id: \.offset) { index, _ in
-                        TextField("Player \(index + 1)", text: Binding(
-                            get: { playerNames.indices.contains(index) ? playerNames[index] : "" },
-                            set: { 
-                                if playerNames.indices.contains(index) {
-                                    playerNames[index] = $0
-                                }
-                            }
-                        ))
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
-                    }
-                }
-                
-                Spacer()
-                
-                // Start new game button
-                Button(action: {
-                    isGameStarted = true
-                }) {
-                    Text("Start New Game")
+        VStack(spacing: 24) {
+            Text("10 000")
+                .font(.largeTitle)
+                .bold()
+                .padding(.top, 40)
+
+            Spacer()
+
+            // Continue game button (if there's an active game)
+            if let activeGame {
+                NavigationLink {
+                    DiceGameView(playerNames: [], existingGame: activeGame)
+                } label: {
+                    Text("Continue Game")
                         .font(.headline)
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(Color.green)
                         .cornerRadius(12)
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 40)
+                
+                Text("or start a new game")
+                    .font(.subheadline)
+                    .foregroundStyle(.gray)
             }
-            .navigationDestination(isPresented: $isGameStarted) {
-                DiceGameView(playerNames: playerNames.prefix(playerCount).map { String($0) }, existingGame: nil)
-            }
-            .navigationDestination(isPresented: $isContinuingGame) {
-                if let activeGame = activeGames.first {
-                    DiceGameView(playerNames: [], existingGame: activeGame)
+            
+            // Player count selector
+            VStack(spacing: 16) {
+                Text("Number of Players")
+                    .font(.headline)
+                
+                Picker("Players", selection: $playerCount) {
+                    ForEach(2...4, id: \.self) { count in
+                        Text("\(count) Players").tag(count)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: playerCount) { oldValue, newValue in
+                    updatePlayerNames(newValue)
                 }
             }
+            .padding(.horizontal)
+            
+            // Player name inputs
+            VStack(spacing: 12) {
+                ForEach(Array(playerNames.prefix(playerCount).enumerated()), id: \.offset) { index, _ in
+                    TextField("Player \(index + 1)", text: Binding(
+                        get: { playerNames.indices.contains(index) ? playerNames[index] : "" },
+                        set: { 
+                            if playerNames.indices.contains(index) {
+                                playerNames[index] = $0
+                            }
+                        }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .padding(.horizontal)
+                }
+            }
+            
+            Spacer()
+            
+            // Start new game button
+            NavigationLink {
+                DiceGameView(playerNames: playerNames.prefix(playerCount).map { String($0) }, existingGame: nil)
+            } label: {
+                Text("Start New Game")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .cornerRadius(12)
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 40)
         }
+        .navigationTitle("10 000")
+        .navigationBarTitleDisplayMode(.large)
         .preferredColorScheme(.dark)
     }
     
@@ -130,6 +118,8 @@ struct DicePlayerSetupView: View {
 }
 
 #Preview {
-    DicePlayerSetupView()
-        .modelContainer(for: [DicePlayer.self, DiceGameState.self], inMemory: true)
+    NavigationStack {
+        DicePlayerSetupView(activeGame: nil)
+            .modelContainer(for: [DicePlayer.self, DiceGameState.self], inMemory: true)
+    }
 }

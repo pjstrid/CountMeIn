@@ -36,15 +36,19 @@ struct StartPageView: View {
                         .foregroundStyle(.gray)
                         .padding(.bottom, 20)
                     
-                    NavigationLink(destination: PlayerSetupView()) {
+                    NavigationLink {
+                        DartGamesMenuView()
+                    } label: {
                         GameOptionRow(
                             icon: "scope",
                             title: "Dart Games",
                             color: .green
                         )
                     }
-                    
-                    NavigationLink(destination: DicePlayerSetupView()) {
+
+                    NavigationLink {
+                        DiceGamesMenuView()
+                    } label: {
                         GameOptionRow(
                             icon: "dice",
                             title: "Dice Games",

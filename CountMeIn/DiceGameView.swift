@@ -10,90 +10,111 @@ import SwiftData
 
 struct DiceGameView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \DicePlayer.order) private var allPlayers: [DicePlayer]
-    
+    @Environment(\.dismiss) private var dismiss
+
     let playerNames: [String]
     let existingGame: DiceGameState?
-    
+
+    /// First player to reach (or pass) this score wins.
+    private static let winningScore = 10000
+
     @State private var hasInitialized = false
     @State private var currentGame: DiceGameState?
     @State private var selectedPlayerIndex: Int?
     @State private var showEditScore = false
     @State private var editingPlayerIndex: Int?
-    
+    @State private var showWinner = false
+    @State private var winnerName = ""
+
     private var players: [DicePlayer] {
         if let game = currentGame {
             return game.players.sorted { $0.order < $1.order }
         }
         return []
     }
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // Player score cards
-            ScrollView {
-                VStack {
-                    ForEach(0..<players.count, id: \.self) { index in
-                        playerCard(at: index)
+        ZStack {
+            VStack(spacing: 0) {
+                // Player score cards
+                ScrollView {
+                    VStack {
+                        ForEach(0..<players.count, id: \.self) { index in
+                            playerCard(at: index)
+                        }
                     }
                 }
-            }
-            
-            // Bottom control panel
-            VStack(spacing: 12) {
-                // Point buttons
-                HStack(spacing: 12) {
-                    pointButton(value: 50)
-                    pointButton(value: 100)
-                    pointButton(value: 500)
-                }
-                .padding(.horizontal)
-                
-                HStack {
-                    // Save button
-                    Button(action: saveRoundScore) {
-                        Text("Save")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.blue.opacity(0.8) : Color.gray.opacity(0.5))
-                            .cornerRadius(12)
+
+                // Bottom control panel
+                VStack(spacing: 12) {
+                    // Point buttons
+                    HStack(spacing: 12) {
+                        pointButton(value: 50)
+                        pointButton(value: 100)
+                        pointButton(value: 500)
                     }
-                    .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
                     .padding(.horizontal)
-                    
-                    // Clear button
-                    Button(action: clearRoundScore) {
-                        Text("Clear")
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
-                            .cornerRadius(12)
+
+                    HStack {
+                        // Save button
+                        Button(action: saveRoundScore) {
+                            Text("Save")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.blue.opacity(0.8) : Color.gray.opacity(0.5))
+                                .cornerRadius(12)
+                        }
+                        .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
+                        .padding(.horizontal)
+
+                        // Clear button
+                        Button(action: clearRoundScore) {
+                            Text("Clear")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(selectedPlayerIndex != nil && players.indices.contains(selectedPlayerIndex!) && players[selectedPlayerIndex!].roundScore > 0 ? Color.red.opacity(0.8) : Color.gray.opacity(0.5))
+                                .cornerRadius(12)
+                        }
+                        .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
+                        .padding(.horizontal)
                     }
-                    .disabled(selectedPlayerIndex == nil || !players.indices.contains(selectedPlayerIndex!) || players[selectedPlayerIndex!].roundScore == 0)
-                    .padding(.horizontal)
                 }
+                .padding(.vertical, 16)
+                .background(Color.black.opacity(0.5))
             }
-            .padding(.vertical, 16)
-            .background(Color.black.opacity(0.5))
-        }
-        .navigationTitle("10 000")
-        .navigationBarTitleDisplayMode(.inline)
-        .preferredColorScheme(.dark)
-        .onAppear {
-            initializeGame()
-        }
-        .sheet(isPresented: $showEditScore) {
-            if let index = editingPlayerIndex, players.indices.contains(index) {
-                EditScoreView(
-                    playerName: players[index].name,
-                    score: Binding(
-                        get: { players[index].savedScore },
-                        set: { players[index].savedScore = $0 }
+            .navigationTitle("10 000")
+            .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(.dark)
+            .onAppear {
+                initializeGame()
+            }
+            .sheet(isPresented: $showEditScore) {
+                if let index = editingPlayerIndex, players.indices.contains(index) {
+                    EditScoreView(
+                        playerName: players[index].name,
+                        score: Binding(
+                            get: { players[index].savedScore },
+                            set: { players[index].savedScore = $0 }
+                        )
                     )
+                }
+            }
+
+            // Winner overlay
+            if showWinner {
+                WinnerView(
+                    winnerName: winnerName,
+                    onNewGame: {
+                        startNewGame()
+                    },
+                    onDismiss: {
+                        finishGame()
+                        dismiss()
+                    }
                 )
             }
         }
@@ -159,10 +180,12 @@ struct DiceGameView: View {
         
         // Deselect player after saving
         selectedPlayerIndex = nil
-        
+
         try? modelContext.save()
+
+        checkForWinner(player)
     }
-    
+
     private func clearRoundScore() {
         guard let index = selectedPlayerIndex, players.indices.contains(index) else { return }
         
@@ -195,23 +218,55 @@ struct DiceGameView: View {
         try? modelContext.save()
     }
     
+    private func checkForWinner(_ player: DicePlayer) {
+        guard player.savedScore >= Self.winningScore else { return }
+        winnerName = player.name
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showWinner = true
+        }
+    }
+
+    private func startNewGame() {
+        // Reset all players back to a fresh start
+        players.forEach { player in
+            player.savedScore = 0
+            player.roundScore = 0
+            player.lastSavedAmount = 0
+        }
+
+        showWinner = false
+        selectedPlayerIndex = nil
+        try? modelContext.save()
+    }
+
+    /// Called when the winner screen is dismissed back to the menu. A finished
+    /// game is never resumable, so remove it (and its players, via cascade
+    /// delete) instead of leaving it marked active forever.
+    private func finishGame() {
+        guard let game = currentGame else { return }
+        modelContext.delete(game)
+        currentGame = nil
+        try? modelContext.save()
+    }
+
     private func initializeGame() {
         guard !hasInitialized else { return }
         hasInitialized = true
-        
+
         if let existing = existingGame {
             // Continue existing game
             currentGame = existing
         } else {
             // Create new game
-            // First, deactivate any existing active dice games
+            // First, remove any leftover active dice games (e.g. abandoned
+            // mid-game) so old players don't pile up in the store forever.
             let descriptor = FetchDescriptor<DiceGameState>(
                 predicate: #Predicate { $0.isActive == true }
             )
             if let existingGames = try? modelContext.fetch(descriptor) {
-                existingGames.forEach { $0.isActive = false }
+                existingGames.forEach { modelContext.delete($0) }
             }
-            
+
             // Create new game state
             let newGame = DiceGameState()
             modelContext.insert(newGame)
