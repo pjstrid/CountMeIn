@@ -57,7 +57,7 @@ struct DicePlayerSetupView: View {
                     .font(.headline)
                 
                 Picker("Players", selection: $playerCount) {
-                    ForEach(2...4, id: \.self) { count in
+                    ForEach(2...5, id: \.self) { count in
                         Text("\(count) Players").tag(count)
                     }
                 }
