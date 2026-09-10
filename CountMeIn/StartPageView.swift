@@ -55,6 +55,16 @@ struct StartPageView: View {
                             color: .orange
                         )
                     }
+                    
+                    NavigationLink {
+                        OtherGamesMenuView()
+                    } label: {
+                        GameOptionRow(
+                            icon: "gamecontroller",
+                            title: "Other Games",
+                            color: .blue
+                        )
+                    }
                 }
                 .padding(.horizontal)
                 

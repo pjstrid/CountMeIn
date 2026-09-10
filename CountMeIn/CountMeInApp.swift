@@ -14,6 +14,6 @@ struct CountMeInApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [Player.self, GameState.self, DicePlayer.self, DiceGameState.self])
+        .modelContainer(for: [Player.self, GameState.self, DicePlayer.self, DiceGameState.self, CounterPlayer.self, CounterGameState.self])
     }
 }
